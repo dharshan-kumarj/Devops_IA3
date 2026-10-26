@@ -45,11 +45,52 @@ echo "    $("$JAVA_BIN" -version 2>&1 | head -1)"
 # ----------------------------------------------------- 2. Jenkins apt repo
 say "Adding the Jenkins apt repository"
 install -m 0755 -d /usr/share/keyrings
-wget -qO /usr/share/keyrings/jenkins-keyring.asc \
-    https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
-     "https://pkg.jenkins.io/debian-stable binary/" \
-     > /etc/apt/sources.list.d/jenkins.list
+
+# Jenkins rotates this signing key and names each one after a year. The URL in
+# their own documentation (jenkins.io-2023.key) is stale: as of 2026-10-27 the
+# repository is signed by jenkins.io-2026.key, and installing only the 2023 key
+# fails with "NO_PUBKEY 7198F4B714ABFC68".
+#
+# So probe for every year's key that exists and install all of them into one
+# keyring. apt accepts several armored blocks in a single file and will use
+# whichever matches, so this keeps working across the next rotation in either
+# direction instead of pinning a year that expires.
+keyring=/usr/share/keyrings/jenkins-keyring.asc
+tmp_keyring="$(mktemp)"
+found=0
+this_year="$(date +%Y)"
+for year in $(seq "$((this_year + 1))" -1 2023); do
+    url="https://pkg.jenkins.io/debian-stable/jenkins.io-${year}.key"
+    if curl -fsS --max-time 30 "$url" >> "$tmp_keyring" 2>/dev/null; then
+        printf '\n' >> "$tmp_keyring"
+        echo "    found jenkins.io-${year}.key"
+        found=$((found + 1))
+    fi
+done
+
+if [ "$found" -eq 0 ]; then
+    rm -f "$tmp_keyring"
+    echo "Could not download any Jenkins signing key. Check network access to" >&2
+    echo "pkg.jenkins.io, then re-run." >&2
+    exit 1
+fi
+
+# Refuse to install something that is not actually a key, rather than let apt
+# fail later with a confusing signature error.
+if ! gpg --show-keys "$tmp_keyring" >/dev/null 2>&1; then
+    rm -f "$tmp_keyring"
+    echo "Downloaded key material did not parse as PGP keys." >&2
+    exit 1
+fi
+echo "    keyring holds $found key file(s):"
+gpg --show-keys --with-colons "$tmp_keyring" 2>/dev/null \
+    | awk -F: '/^fpr/{print "      " $10}'
+
+install -m 0644 "$tmp_keyring" "$keyring"
+rm -f "$tmp_keyring"
+
+echo "deb [signed-by=${keyring}] https://pkg.jenkins.io/debian-stable binary/" \
+    > /etc/apt/sources.list.d/jenkins.list
 
 say "Installing Jenkins"
 apt-get update -qq
