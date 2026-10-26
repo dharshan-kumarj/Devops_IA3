@@ -1,0 +1,110 @@
+---
+# Deploys one already-built image onto the Azure VM. Jenkins has built, tested
+# and pushed it by the time this runs; nothing is compiled here.
+#
+# Required extra-vars (Jenkins passes all four):
+#   image_name  ghcr.io/<owner>/automl_ia3
+#   image_tag   short commit hash
+#   ghcr_user   GitHub username
+#   ghcr_token  GitHub PAT with read:packages
+
+- name: Deploy mandi-automl to the Azure VM
+  hosts: app
+  become: true
+  gather_facts: true
+
+  vars:
+    container_name: mandi-automl
+    host_port: 80
+    container_port: 8000
+    # One uvicorn worker. The app measured 407 MiB with two; on a 2 GiB B1ms
+    # that leaves little room, and a single worker is ample for a demo.
+    web_workers: 1
+
+  tasks:
+    - name: Fail early with a clear message if the image was not passed in
+      ansible.builtin.assert:
+        that:
+          - image_name is defined and image_name | length > 0
+          - image_tag is defined and image_tag | length > 0
+        fail_msg: >-
+          image_name and image_tag must be passed with -e. Jenkins does this
+          automatically; if you are running by hand, see inventory.ini.example.
+
+    - name: Wait for cloud-init to finish installing Docker
+      ansible.builtin.wait_for:
+        path: /var/lib/cloud/docker-ready
+        timeout: 600
+      # On the very first deploy the VM may still be booting. Without this the
+      # next task fails with "docker: command not found" and the cause is not
+      # obvious from the Jenkins log.
+
+    - name: Confirm the Docker daemon is up
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      retries: 10
+      delay: 6
+      until: docker_info.rc == 0
+
+    - name: Log in to GHCR so the private image can be pulled
+      ansible.builtin.command:
+        cmd: docker login ghcr.io --username {{ ghcr_user }} --password-stdin
+        stdin: "{{ ghcr_token }}"
+        stdin_add_newline: false
+      no_log: true          # keeps the token out of the Jenkins console log
+      changed_when: true
+      when: ghcr_token is defined and ghcr_token | length > 0
+
+    - name: Pull the image this build produced
+      ansible.builtin.command: "docker pull {{ image_name }}:{{ image_tag }}"
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+
+    - name: Stop and remove the previous container
+      ansible.builtin.command: "docker rm -f {{ container_name }}"
+      register: rm_result
+      failed_when: false
+      changed_when: rm_result.rc == 0
+      # Not an error on the first ever deploy, when there is nothing to remove.
+
+    - name: Start the new container
+      ansible.builtin.command: >-
+        docker run -d
+        --name {{ container_name }}
+        --restart unless-stopped
+        -p {{ host_port }}:{{ container_port }}
+        --memory 1g
+        {{ image_name }}:{{ image_tag }}
+        uvicorn app.main:app
+        --host 0.0.0.0 --port {{ container_port }}
+        --workers {{ web_workers }} --access-log
+      changed_when: true
+
+    - name: Wait for the app to answer its health check
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ host_port }}/api/health"
+        status_code: 200
+        return_content: true
+      register: health
+      retries: 30
+      delay: 5
+      until: health.status == 200 and 'ok' in (health.content | default(''))
+
+    - name: Log out of GHCR again
+      ansible.builtin.command: docker logout ghcr.io
+      changed_when: true
+      failed_when: false
+      # Leaves no registry credential sitting in /root/.docker/config.json.
+
+    - name: Drop images older than the last few deploys
+      ansible.builtin.command: docker image prune -af --filter "until=72h"
+      changed_when: false
+      failed_when: false
+      # A 30 GB disk fills up after a few dozen 754 MB images otherwise.
+
+    - name: Report where the app is now running
+      ansible.builtin.debug:
+        msg: >-
+          {{ container_name }} is serving {{ image_name }}:{{ image_tag }}
+          on http://{{ inventory_hostname }}:{{ host_port }}/

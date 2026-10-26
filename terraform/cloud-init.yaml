@@ -1,0 +1,28 @@
+#cloud-config
+# Runs once, on the VM's first boot. Its only job is to leave a working Docker
+# daemon behind, so the Ansible playbook that Jenkins runs has something to
+# deploy into. Everything after this point is handled by the pipeline.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - python3            # Ansible needs a Python interpreter on the target host.
+
+runcmd:
+  # Docker's official apt repository, rather than Ubuntu's older packaged build.
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  # So the deploy user can talk to the Docker socket without sudo.
+  - usermod -aG docker ${admin_username}
+  - systemctl enable --now docker
+  # A marker the playbook can wait on: cloud-init can still be running when
+  # Jenkins first tries to deploy, and a half-installed Docker fails confusingly.
+  - touch /var/lib/cloud/docker-ready

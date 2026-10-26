@@ -1,0 +1,9 @@
+# For running the playbook by hand. Jenkins writes its own inventory at deploy
+# time from the `azure-vm-ip` credential, so this file is only for local testing.
+#
+#     cp inventory.ini.example inventory.ini   and put your IP in
+#     ansible-playbook deploy.yml -i inventory.ini --private-key ~/.ssh/mandi_azure \
+#         -e image_name=ghcr.io/dharshan-kumarj/automl_ia3 -e image_tag=latest
+
+[app]
+20.0.0.0 ansible_user=azureuser

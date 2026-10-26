@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and fill in your own values.
+#
+#     cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars is git-ignored on purpose. Do not commit it.
+
+# REQUIRED. Your Azure subscription GUID.
+#   az account show --query id -o tsv
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Change this if a teammate is deploying into the same subscription, so your
+# resource names do not collide. 3-12 lowercase letters/digits.
+prefix = "mandi"
+
+# centralindia, southindia, eastus ... check what your student subscription
+# allows:  az account list-locations --query "[].name" -o tsv
+location = "centralindia"
+
+# Path to the PUBLIC key you generated (the .pub one).
+ssh_public_key_path = "~/.ssh/mandi_azure.pub"
+
+# Strongly recommended: lock SSH to your own IP instead of the whole internet.
+#   curl -s ifconfig.me          -> then append /32
+# allowed_ssh_cidr = "203.0.113.9/32"
+
+# Smallest size that fits the app. Leave it unless you run out of memory.
+vm_size = "Standard_B1ms"

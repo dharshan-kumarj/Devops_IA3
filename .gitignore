@@ -1,0 +1,26 @@
+# --- Terraform ---------------------------------------------------------------
+# State files record every resource and can contain secrets. Never commit them.
+*.tfstate
+*.tfstate.*
+.terraform/
+# .terraform.lock.hcl is deliberately COMMITTED: it pins the exact provider
+# version and checksums, so a later `terraform init` resolves the same thing.
+crash.log
+
+# Your real variable values, including the subscription id.
+terraform.tfvars
+*.auto.tfvars
+!terraform.tfvars.example
+
+# --- Ansible -----------------------------------------------------------------
+# Written at deploy time from the Jenkins credential; not a source file.
+ansible/inventory.ini
+!ansible/inventory.ini.example
+*.retry
+
+# --- Keys and secrets --------------------------------------------------------
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.env
