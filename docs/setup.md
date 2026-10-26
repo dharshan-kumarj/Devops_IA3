@@ -245,6 +245,16 @@ retry, or watch it with `sudo tail -f /var/log/cloud-init-output.log`.
 
 ## Step 7 — Install and configure Jenkins
 
+Use the script, which also handles the Java version and the docker group:
+
+```bash
+cd ~/projects/devops_IA3
+sudo bash scripts/install_jenkins.sh
+```
+
+It prints the one-time unlock password at the end. The manual equivalent, if you
+would rather see each step:
+
 ```bash
 sudo apt install -y fontconfig openjdk-21-jre
 sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
