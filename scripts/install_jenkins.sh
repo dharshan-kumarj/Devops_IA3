@@ -31,6 +31,17 @@ fi
 say() { printf '\n==> %s\n' "$*"; }
 
 # ---------------------------------------------------------------- 1. Java 21
+# --------------------------------------------- 0. Undo any half-done attempt
+# A previous failed run leaves /etc/apt/sources.list.d/jenkins.list behind. Every
+# later apt-get update then fails on that repository -- including the one below,
+# which runs before the code that would fix the key. So clear the repo definition
+# first and let the rest of the script lay it down again.
+if [ -e /etc/apt/sources.list.d/jenkins.list ]; then
+    say "Clearing the Jenkins apt entry from a previous run"
+    rm -f /etc/apt/sources.list.d/jenkins.list
+    rm -f /usr/share/keyrings/jenkins-keyring.asc
+fi
+
 say "Installing Java ${JAVA_VERSION} (your system default stays as it is)"
 apt-get update -qq
 apt-get install -y -qq fontconfig "openjdk-${JAVA_VERSION}-jre"
