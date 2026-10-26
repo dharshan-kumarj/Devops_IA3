@@ -3,6 +3,10 @@
 Terraform and Ansible that provision an Azure VM and deploy the
 [AutoML_IA3](https://github.com/dharshan-kumarj/AutoML_IA3) web app onto it.
 
+> On GitHub this repository is **`Devops_IA3`** (capital D); the local working
+> folder is `devops_IA3`. The `Jenkinsfile` in the app repo clones the GitHub
+> spelling, so keep that one exact.
+
 The application code, its `Dockerfile` and its `Jenkinsfile` live in that other
 repository. This one owns only the infrastructure, and Jenkins checks it out
 during its Deploy stage.

@@ -79,6 +79,39 @@ az account list --output table
 az account set --subscription "Azure for Students"
 ```
 
+### Check which regions you are allowed to use
+
+Do this *before* `terraform apply`, not after. A student subscription carries an
+**"Allowed resource deployment regions"** policy, and it is narrower than what
+Azure offers generally. Deploying outside it fails with a `403
+RequestDisallowedByAzure` — and it fails *after* the resource group has already
+been created, which looks alarming but is harmless.
+
+```bash
+az policy assignment list --query "[].parameters" -o json
+```
+
+On this subscription (checked 2026-10-27) that returned:
+
+```
+indonesiacentral   koreacentral   malaysiawest   indiasouthcentral   eastasia
+```
+
+Note that `centralindia` and `southindia` are **not** in that list, despite both
+existing in Azure. `indiasouthcentral` is the closest allowed region to the
+Indian mandi data this app serves, and is the default in `variables.tf`.
+
+Your teammates' subscriptions may well allow a different set, so each of you
+should run this and set `location` in your own `terraform.tfvars` accordingly.
+Confirm the VM size exists there too:
+
+```bash
+az vm list-skus --location <region> --resource-type virtualMachines \
+  --query "[?name=='Standard_B1ms'].{name:name,restrictions:restrictions}" -o json
+```
+
+An empty `restrictions` list means you can use it.
+
 **Check your remaining credit** while you are there — Portal → **Cost Management
 + Billing** → **Credits**. A `Standard_B1ms` runs roughly ₹1,100–1,400/month, so a
 $100 student credit lasts the project easily, but only if you run
@@ -316,7 +349,8 @@ including while you sleep.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `terraform apply` → *SubscriptionNotFound* | wrong GUID, or not logged in | `az login` then re-check `az account show --query id -o tsv` |
-| *QuotaExceeded* / *SkuNotAvailable* | the region has no B1ms left for student subs | try `location = "southindia"` or `"eastus"` |
+| `403 RequestDisallowedByAzure` on VNet/NSG/PIP | `location` is outside your subscription's allowed-regions policy | `az policy assignment list --query "[].parameters" -o json`, put an allowed region in `terraform.tfvars`, `terraform apply` again. The resource group gets replaced; it is empty, so nothing is lost. |
+| *QuotaExceeded* / *SkuNotAvailable* | the region has no B1ms quota for student subs | pick another **allowed** region and re-check the SKU with `az vm list-skus` |
 | Jenkins → `docker: permission denied` | the `jenkins` user is not in the docker group | `sudo usermod -aG docker jenkins && sudo systemctl restart jenkins` |
 | Push to GHCR → `denied` | PAT missing `write:packages`, or image name has a capital letter | regenerate the token; GHCR paths must be all lowercase |
 | VM pull → `unauthorized` | the GHCR package is private and the token is not reaching the VM | check the Deploy stage passes `ghcr_token`, or make the package public under GitHub → Packages → Package settings |

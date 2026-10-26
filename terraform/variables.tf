@@ -24,9 +24,20 @@ variable "prefix" {
 }
 
 variable "location" {
-  description = "Azure region. centralindia is the closest to the mandi data this app serves."
+  description = "Azure region. Must be one your subscription's region policy allows (see README)."
   type        = string
-  default     = "centralindia"
+  default     = "indiasouthcentral"
+
+  # An Azure for Students subscription carries an "Allowed resource deployment
+  # regions" policy, and centralindia is NOT in it -- a deploy there fails with
+  # RequestDisallowedByAzure (403) after the resource group has already been
+  # created. List the regions yours permits with:
+  #
+  #   az policy assignment list --query "[].parameters" -o json
+  #
+  # On this subscription (checked 2026-10-27) that returned:
+  #   indonesiacentral, koreacentral, malaysiawest, indiasouthcentral, eastasia
+  # indiasouthcentral is the closest to the Indian mandi data this app serves.
 }
 
 variable "vm_size" {

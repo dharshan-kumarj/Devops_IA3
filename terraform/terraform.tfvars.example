@@ -12,9 +12,11 @@ subscription_id = "00000000-0000-0000-0000-000000000000"
 # resource names do not collide. 3-12 lowercase letters/digits.
 prefix = "mandi"
 
-# centralindia, southindia, eastus ... check what your student subscription
-# allows:  az account list-locations --query "[].name" -o tsv
-location = "centralindia"
+# Your subscription's region policy decides this, NOT what Azure offers overall.
+# A student subscription allows only a handful. List yours FIRST:
+#   az policy assignment list --query "[].parameters" -o json
+# Picking a disallowed region fails with a 403 RequestDisallowedByAzure.
+location = "indiasouthcentral"
 
 # Path to the PUBLIC key you generated (the .pub one).
 ssh_public_key_path = "~/.ssh/mandi_azure.pub"
