@@ -78,28 +78,38 @@ fi
 echo
 
 # -------------------------------------------------- 3. an actual push
-echo "==> 3. Can it actually push? (tiny probe image, ~100 bytes)"
-if ! printf '%s' "$TOKEN" | docker login ghcr.io -u "$login" --password-stdin >/dev/null 2>&1; then
+echo "==> 3. Can it actually push?"
+# Retag a tiny public image rather than building one: that removes the build
+# from the equation, so a failure here can only be the push.
+if ! printf '%s' "$TOKEN" | docker login ghcr.io -u "$login" --password-stdin 2>&1 | sed 's/^/    /'; then
     echo "    FAIL: docker login ghcr.io was rejected."
     fail=1
 else
-    echo "    login OK"
     probe="ghcr.io/${login}/ghcr-probe:test"
-    tmp="$(mktemp -d)"
-    printf 'FROM scratch\nCOPY Dockerfile /x\n' > "$tmp/Dockerfile"
-    if docker build -q -t "$probe" "$tmp" >/dev/null 2>&1 \
-       && docker push "$probe" >/dev/null 2>&1; then
-        echo "    OK: push succeeded. The token can write to this namespace."
-        echo "    (delete the probe later at github.com/users/${login}/packages)"
+
+    echo "    pulling hello-world (public, ~20 kB)"
+    if ! docker pull -q hello-world >/dev/null 2>&1; then
+        echo "    could not pull hello-world; skipping the push probe."
     else
-        echo "    FAIL: the probe push was denied too, so it is the token and"
-        echo "    not anything specific to the automl_ia3 package."
-        fail=1
+        docker tag hello-world "$probe"
+        echo "    pushing ${probe}"
+        echo "    ---- full output, nothing suppressed ----"
+        if docker push "$probe" 2>&1 | sed 's/^/    /'; then
+            echo "    ----"
+            echo "    OK: push succeeded."
+            echo "    Delete the probe later at github.com/users/${login}/packages"
+        else
+            echo "    ----"
+            echo "    FAIL: the push was refused. The exact registry message is"
+            echo "    printed above -- that text is what identifies the cause,"
+            echo "    not the word 'denied' on its own."
+            fail=1
+        fi
+        docker rmi "$probe" >/dev/null 2>&1 || true
     fi
-    docker rmi "$probe" >/dev/null 2>&1 || true
-    rm -rf "$tmp"
     docker logout ghcr.io >/dev/null 2>&1 || true
 fi
+echo
 
 unset TOKEN
 echo
