@@ -25,8 +25,20 @@ devops_IA3/
 │   ├── ansible.cfg
 │   └── inventory.ini.example
 └── docs/
-    └── setup.md               the step-by-step run book
+    ├── setup.md               the step-by-step run book
+    ├── architecture.md        how it all fits together, and every problem hit
+    └── devops_report.md       the assignment report, ready to export as PDF
 ```
+
+## Documentation
+
+| File | Read it when |
+|---|---|
+| [`docs/setup.md`](docs/setup.md) | you are building this from nothing, or something broke |
+| [`docs/architecture.md`](docs/architecture.md) | you need to explain how it works, or revise before a viva |
+| [`docs/devops_report.md`](docs/devops_report.md) | you are writing the submission |
+
+**Live deployment:** <http://172.198.79.131/>
 
 ## How the pieces fit together
 
