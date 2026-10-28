@@ -39,6 +39,7 @@ devops_IA3/
 | [`docs/devops_report.md`](docs/devops_report.md) | you are writing the submission |
 | [`docs/migrate_to_new_machine.md`](docs/migrate_to_new_machine.md) | you are moving to a different laptop |
 | [`docs/second_jenkins.md`](docs/second_jenkins.md) | a teammate needs to build and deploy from their own machine |
+| [`docs/TEAMMATE_SETUP.md`](docs/TEAMMATE_SETUP.md) | **you are that teammate** — linear walkthrough, blank laptop to green build |
 
 **Live deployment:** <http://172.198.79.131/>
 
