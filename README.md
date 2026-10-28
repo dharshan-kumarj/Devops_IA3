@@ -37,6 +37,7 @@ devops_IA3/
 | [`docs/setup.md`](docs/setup.md) | you are building this from nothing, or something broke |
 | [`docs/architecture.md`](docs/architecture.md) | you need to explain how it works, or revise before a viva |
 | [`docs/devops_report.md`](docs/devops_report.md) | you are writing the submission |
+| [`docs/migrate_to_new_machine.md`](docs/migrate_to_new_machine.md) | you are moving to a different laptop |
 
 **Live deployment:** <http://172.198.79.131/>
 
