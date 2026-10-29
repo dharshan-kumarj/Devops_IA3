@@ -317,6 +317,9 @@ build on its own. The build page will record the cause as
 | `error from registry: denied` on push | token lacks `write:packages`, is fine-grained, or you have no access to the package | `bash scripts/check_ghcr.sh`; ask the owner for Write access |
 | `failed to fetch oauth token: denied` during **Docker Build** | a stale credential left by an earlier failed push | `sudo rm -f /var/lib/jenkins/.docker/config.json` |
 | `Load key: error in libcrypto` + `Permission denied (publickey)` | the key pasted into Jenkins lost its trailing newline | re-paste with `xclip` (step 7b) |
+| `ansible-playbook: not found`, exit code 127 | Ansible was never installed (step 2) | `sudo apt install -y ansible && sudo systemctl restart jenkins` |
+| `the --mount option requires BuildKit` | the buildx plugin is missing | `sudo apt install -y docker-buildx-plugin && sudo systemctl restart jenkins` |
+| `Sending build context to Docker daemon  2.9GB` | you are on an old `Jenkinsfile`/`.dockerignore` | sync your fork from upstream |
 | Ansible `UNREACHABLE` | VM is deallocated, or your key was never appended | ask the owner to `az vm start`; test SSH by hand |
 | Jenkins will not start after install | wrong Java | re-run `sudo bash scripts/install_jenkins.sh` |
 | `uv: command not found` in Lint & Test | transient download failure | re-run the build |

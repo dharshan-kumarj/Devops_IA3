@@ -148,16 +148,53 @@ fi
 usermod -aG docker jenkins
 echo "    jenkins is now in: $(id -nG jenkins)"
 
-say "Checking the tools the pipeline shells out to"
+say "Installing the tools the pipeline shells out to"
+# The Deploy stage runs ansible-playbook and the checkout needs git. Reporting
+# these as missing and carrying on is not good enough: the warning scrolls past
+# in a long install log and the build then dies with "ansible-playbook: not
+# found" and exit 127, several minutes and a 754 MB image push later.
+missing=""
+for pkg in ansible git curl; do
+    command -v "$pkg" >/dev/null || missing="$missing $pkg"
+done
+if [ -n "$missing" ]; then
+    echo "    installing:$missing"
+    apt-get install -y -qq $missing
+fi
+
+# docker-buildx-plugin is separate: the application Dockerfile uses
+# `RUN --mount=type=cache`, which the legacy builder cannot parse at all.
+if ! docker buildx version >/dev/null 2>&1; then
+    echo "    installing: docker-buildx-plugin"
+    apt-get install -y -qq docker-buildx-plugin || {
+        echo "    could not install docker-buildx-plugin from apt." >&2
+        echo "    Install Docker from get.docker.com, which bundles it." >&2
+    }
+fi
+
+say "Verifying every tool the pipeline needs"
+fail=0
 for tool in docker ansible-playbook git curl; do
     if command -v "$tool" >/dev/null; then
-        printf '    %-16s %s\n' "$tool" "$(command -v "$tool")"
+        printf '    %-18s %s\n' "$tool" "$(command -v "$tool")"
     else
-        echo "    $tool MISSING -- the pipeline will fail without it" >&2
+        printf '    %-18s MISSING\n' "$tool" >&2
+        fail=1
     fi
 done
+if docker buildx version >/dev/null 2>&1; then
+    printf '    %-18s %s\n' "docker buildx" "$(docker buildx version | head -1)"
+else
+    printf '    %-18s MISSING\n' "docker buildx" >&2
+    fail=1
+fi
+if [ "$fail" -ne 0 ]; then
+    echo >&2
+    echo "Something above is missing and the pipeline will fail on it." >&2
+    echo "Install it, then re-run this script." >&2
+    exit 1
+fi
 
-# ----------------------------------------------------------- 5. Start it up
 say "Starting Jenkins"
 systemctl daemon-reload
 systemctl enable --now jenkins
